@@ -1,93 +1,104 @@
-# Импортируем необходимые модули
-import pygame  # библиотека для создания игр
-import sys     # для выхода из программы
-import random  # для генерации случайных чисел
+# -*- coding: utf-8 -*-
+import pygame  # основная библиотека для создания игр
+import sys     # для корректного выхода из игры
+import random  # для случайного размещения труб
 
-# Инициализация всех модулей Pygame
+# Инициализируем все модули Pygame
 pygame.init()
 
 # Размеры окна
 WIDTH, HEIGHT = 400, 600
-screen = pygame.display.set_mode((WIDTH, HEIGHT))  # создаём окно игры
-pygame.display.set_caption("Flappy Bird")  # устанавливаем заголовок окна
+screen = pygame.display.set_mode((WIDTH, HEIGHT))  # создаём окно заданного размера
+pygame.display.set_caption("Flappy Bird")  # заголовок окна
 
-# Цвета в формате RGB
+# Цвета (RGB)
 WHITE = (255, 255, 255)
-BLUE = (0, 150, 255)    # фон неба
+BLUE = (0, 150, 255)    # фон
 GREEN = (0, 255, 0)     # трубы
-RED = (255, 0, 0)       # птичка
+RED = (255, 0, 0)       # птица
 
-# Создаём объект clock для ограничения FPS
+# Частота кадров в секунду
 clock = pygame.time.Clock()
-fps = 60  # количество кадров в секунду
+fps = 60  # FPS (кадры в секунду)
 
-# Параметры птички
+# === ПАРАМЕТРЫ ПТИЦЫ ===
 bird_size = 30
-bird_x = 100                # начальная координата X
-bird_y = HEIGHT // 2        # начальная координата Y — по центру экрана
-bird_velocity = 0           # скорость птички по оси Y
-gravity = 0.5               # сила гравитации
-jump_strength = -8          # сила прыжка при нажатии клавиши
+bird_x = 100                # начальная позиция X
+bird_y = HEIGHT // 2        # начальная позиция Y (по вертикали — посередине)
+bird_velocity = 0           # скорость птицы по Y
+gravity = 0.5               # ускорение свободного падения
+jump_strength = -8          # сила прыжка при нажатии пробела
 
-# Параметры труб
+# === ПАРАМЕТРЫ ТРУБ ===
 pipe_width = 50
 pipe_gap = 150              # расстояние между верхней и нижней трубой
 pipe_velocity = 3           # скорость движения труб
-pipes = []                  # список труб (каждая труба — [x, высота, был_ли_пройден])
+pipes = []                  # список труб: [x, высота_верхней_трубы, был_ли_пройден]
+pipe_timer = 0              # таймер для создания новых труб
 
-pipe_timer = 0              # таймер для появления труб
-
-# Счёт и шрифт
+# === СЧЁТ ===
 score = 0
-font = pygame.font.Font(None, 36)  # стандартный шрифт
+font = pygame.font.Font(None, 36)  # шрифт для отображения текста
 
-# Функция для отображения текста на экране
 def draw_text(text, x, y, color=WHITE):
+    """
+    Функция для отрисовки текста на экране.
+    
+    Аргументы:
+    text -- текст для отображения
+    x -- координата X текста
+    y -- координата Y текста
+    color -- цвет текста (по умолчанию белый)
+    """
     label = font.render(text, True, color)
     screen.blit(label, (x, y))
 
-# Основной цикл игры
+
+# === ОСНОВНОЙ ЦИКЛ ИГРЫ ===
 running = True
 while running:
-    screen.fill(BLUE)  # заливаем фон синим цветом
+    screen.fill(BLUE)  # заливаем экран цветом фона
 
-    # Обрабатываем события (нажатия клавиш, выход)
+    # === ОБРАБОТКА СОБЫТИЙ ===
     for event in pygame.event.get():
-        if event.type == pygame.QUIT:  # если нажата кнопка "Закрыть"
+        if event.type == pygame.QUIT:
+            # Если пользователь закрыл окно — выходим из игры
+            running = False
             pygame.quit()
             sys.exit()
-        if event.type == pygame.KEYDOWN:  # если нажата клавиша
-            if event.key == pygame.K_SPACE:  # если это пробел — птичка прыгает
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_SPACE:
+                # При нажатии пробела — птица делает прыжок
                 bird_velocity = jump_strength
 
-    # Применяем гравитацию и перемещаем птичку
-    bird_velocity += gravity
-    bird_y += bird_velocity
+    # === ЛОГИКА ПТИЦЫ ===
+    bird_velocity += gravity  # применяем гравитацию
+    bird_y += bird_velocity   # перемещаем птицу по Y
 
-    # Если птичка вышла за границы экрана — конец игры
+    # Проверяем выход за границы экрана
     if bird_y > HEIGHT - bird_size or bird_y < 0:
         running = False
 
-    # Создаём новую трубу каждые 90 кадров
+    # === ЛОГИКА ТРУБ ===
     pipe_timer += 1
-    if pipe_timer > 90:
-        pipe_height = random.randint(100, HEIGHT - pipe_gap - 100)  # случайная высота трубы
-        pipes.append([WIDTH, pipe_height, False])  # [x, высота, флаг_счёта]
-        pipe_timer = 0
+    if pipe_timer > 90:  # каждые 90 кадров создаём новую трубу
+        pipe_height = random.randint(100, HEIGHT - pipe_gap - 100)
+        pipes.append([WIDTH, pipe_height, False])  # добавляем трубу
+        pipe_timer = 0  # сбрасываем таймер
 
-    # Новый список для активных труб
-    new_pipes = []
+    new_pipes = []  # временный список для труб, которые ещё не ушли за экран
 
-    # Прямоугольник птички для столкновений
+    # Прямоугольник птицы для проверки столкновений
     bird_rect = pygame.Rect(bird_x, bird_y, bird_size, bird_size)
 
-    # Отрисовываем и двигаем трубы
+    # === ОТРИСОВКА И ЛОГИКА КАЖДОЙ ТРУБЫ ===
     for pipe in pipes:
-        pipe[0] -= pipe_velocity  # труба движется влево
-        if pipe[0] + pipe_width > 0:
-            new_pipes.append(pipe)  # если труба всё ещё на экране — сохраняем
+        pipe[0] -= pipe_velocity  # двигаем трубу влево
 
-        # Создаём прямоугольники верхней и нижней трубы
+        if pipe[0] + pipe_width > 0:
+            new_pipes.append(pipe)  # если труба всё ещё видима — оставляем её
+
+        # Координаты прямоугольников труб
         top_rect = pygame.Rect(pipe[0], 0, pipe_width, pipe[1])
         bottom_rect = pygame.Rect(pipe[0], pipe[1] + pipe_gap, pipe_width, HEIGHT - pipe[1] - pipe_gap)
 
@@ -95,28 +106,27 @@ while running:
         pygame.draw.rect(screen, GREEN, top_rect)
         pygame.draw.rect(screen, GREEN, bottom_rect)
 
-        # Проверка на столкновение птички с трубой
+        # === ПРОВЕРКА СТОЛКНОВЕНИЙ ===
         if bird_rect.colliderect(top_rect) or bird_rect.colliderect(bottom_rect):
-            running = False
+            running = False  # если произошло столкновение — игра окончена
 
-        # Увеличиваем счёт, если птичка пролетела трубу
+        # === УВЕЛИЧЕНИЕ СЧЁТА ===
         if not pipe[2] and pipe[0] + pipe_width < bird_x:
-            score += 1
-            pipe[2] = True  # отмечаем, что труба уже пройдена
+            score += 1         # увеличиваем счёт
+            pipe[2] = True     # помечаем трубу как пройденную
 
-    # Обновляем список труб
-    pipes = new_pipes
+    pipes = new_pipes  # обновляем список труб
 
-    # Рисуем птичку
+    # === ОТРИСОВКА ПТИЦЫ ===
     pygame.draw.rect(screen, RED, (bird_x, bird_y, bird_size, bird_size))
 
-    # Показываем счёт
+    # === ОТОБРАЖЕНИЕ СЧЁТА ===
     draw_text(f"Очки: {score}", 10, 10)
 
-    # Обновляем экран
-    pygame.display.flip()
-    clock.tick(fps)  # задержка для соблюдения fps
+    # === ОБНОВЛЕНИЕ ЭКРАНА ===
+    pygame.display.flip()  # обновляем экран
+    clock.tick(fps)        # ограничиваем частоту кадров
 
-# Игра окончена — выводим финальный счёт
+# === ИГРА ЗАВЕРШЕНА ===
 print(f"Ваш счёт: {score}")
-pygame.quit()
+pygame.quit()  # выходим из Pygame
